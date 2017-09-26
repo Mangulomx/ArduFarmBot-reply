@@ -2,6 +2,11 @@
 #include <DHT.h>
 #include <DHT_U.h>
 
+// Including Libraries for I2C LCD
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
 // Sensor definitions
 
 #define DHTPIN 5 //DHT data pin connected to Arduino pin 5
@@ -17,7 +22,7 @@ int tempDHT;
 int humDHT;
 
 // Variables to be used by Actuators
-boolean pumpStatus = false;
+boolean pumpStatus = 0;
 boolean LastStatus = LOW;
 boolean InitStatus = LOW;
 
@@ -32,20 +37,15 @@ int cont=0;
 
 DHT dht(DHTPIN, DHTTYPE);
 
+// Initialize LCD
+
+LiquidCrystal_I2C lcd(0x3F, 20, 4);
+
 int cuenta = 0;
 int statusButton;
 int statusButtonLast;
 
-boolean debounce(boolean eLast)
-{
-   boolean eInit = digitalRead(PUMP_ON);
-  if (eLast != eInit)
-  {
-    delay(5);
-    eInit = digitalRead(PUMP_ON);
-  }
-  return eInit;
-}
+
 
 void setup()
 {
@@ -55,6 +55,7 @@ void setup()
   Serial.begin(9600);
   Serial.println("ArduFarmBot Local Station Test");
   dht.begin();
+  lcd.begin();
   readSensors(); //innitial reading
   startTiming = millis(); // starting the "program clock"
 }
@@ -67,6 +68,7 @@ void loop()
 
   
   readLocalCmd(); //Read local button status
+  showDataLCD();
   if(elapsedTime > (sampleTimingSeconds * 1000))
   {
     readSensors();
@@ -96,13 +98,31 @@ void readLocalCmd()
   {
     pumpStatus = !pumpStatus;
     cont++;
-    Serial.print(cont);
+    
   }
   LastStatus = InitStatus;
-  digitalWrite(PUMP_PIN, pumpStatus);
-  digitalWrite(PUMP, !pumpStatus);
+  showDataLCD();
+  aplyCmd();
+  
 }
 
+/***************************************************
+* Receive Commands and act on actuators
+****************************************************/
+
+void aplyCmd()
+{
+  if(pumpStatus == 1)
+  {
+    digitalWrite(PUMP_PIN, HIGH);
+    digitalWrite(PUMP, LOW);
+  }
+  if(pumpStatus == 0)
+  {
+    digitalWrite(PUMP_PIN, LOW);
+    digitalWrite(PUMP,HIGH);
+  }
+}
 
 /***************************************************
 * Showing capured data at Serial Monitor
@@ -113,6 +133,41 @@ void printData(void)
   Serial.print(tempDHT);
   Serial.print("oC Hum DHT ==> ");
   Serial.print(humDHT);
+}
+
+/***************************************************
+* Showing capured data at LCD
+****************************************************/
+void showDataLCD(void)
+{
+  lcd.setCursor(0,0);
+  lcd.print("ArduFarmBot Ctrl St.");
+  lcd.setCursor (0,1);
+  lcd.print("Temp: ");
+  lcd.print(tempDHT);
+  lcd.print("oC  Hum: ");
+  lcd.print(humDHT);
+  lcd.print("%  ");
+  lcd.setCursor (0,2);
+  lcd.print("Pump: ");
+  lcd.print(pumpStatus);
+  lcd.setCursor(0,0);
+  
+}
+
+
+/***************************************************
+* Debouncing a key
+****************************************************/
+boolean debounce(boolean eLast)
+{
+   boolean eInit = digitalRead(PUMP_ON);
+  if (eLast != eInit)
+  {
+    delay(5);
+    eInit = digitalRead(PUMP_ON);
+  }
+  return eInit;
 }
 
 
