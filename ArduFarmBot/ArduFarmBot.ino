@@ -50,7 +50,7 @@ int statusButtonLast;
 void setup()
 {
   pinMode(PUMP_PIN, OUTPUT);
-  pinMode(PUMP_ON, INPUT_PULLUP); //Button
+  pinMode(PUMP_ON, INPUT); //Button
   pinMode(PUMP, OUTPUT);
   Serial.begin(9600);
   Serial.println("ArduFarmBot Local Station Test");
