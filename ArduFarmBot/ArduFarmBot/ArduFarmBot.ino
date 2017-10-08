@@ -19,6 +19,9 @@
 #define LAMP_ON 9  //push-button
 #define LAMP_PIN 8
 
+//Actuators
+
+byte actuators[]={7,10};
 // Variables to be used by Sensor
 int tempDHT; 
 int humDHT;
@@ -43,6 +46,9 @@ LiquidCrystal_I2C lcd(0x3F, 20, 4);
 void setup() {
   pinMode(PUMP_PIN, OUTPUT);
   pinMode(LAMP_PIN, OUTPUT);
+  pinMode(actuators[0],OUTPUT);
+  pinMode(actuators[1],OUTPUT);
+  digitalWrite(actuators[0], LOW);
   pinMode(PUMP_ON, INPUT_PULLUP); // Button
   pinMode(LAMP_ON, INPUT_PULLUP); // Button
   Serial.begin(9600); 
@@ -101,11 +107,26 @@ void readLocalCmd()
 ****************************************************/
 void aplyCmd()
 {
-    if (pumpStatus == 1) digitalWrite(PUMP_PIN, HIGH);
-    if (pumpStatus == 0) digitalWrite(PUMP_PIN, LOW);
+    if (pumpStatus == 1)
+    {
+      digitalWrite(PUMP_PIN, HIGH);
+      digitalWrite(actuators[0], LOW);
+    }
+    if (pumpStatus == 0)
+    {
+      digitalWrite(PUMP_PIN, LOW);
+      digitalWrite(actuators[0], HIGH);
+    }
   
-    if (lampStatus == 1) digitalWrite(LAMP_PIN, HIGH);
-    if (lampStatus == 0) digitalWrite(LAMP_PIN, LOW);
+    if (lampStatus == 1) 
+    {
+      digitalWrite(LAMP_PIN, HIGH);
+      digitalWrite(actuators[1], LOW);
+    }
+    if (lampStatus == 0){ 
+      digitalWrite(LAMP_PIN, LOW);
+      digitalWrite(actuators[1], HIGH);
+    }
 }
 
 /***************************************************
@@ -126,6 +147,8 @@ void printData(void)
   Serial.print(tempDHT);
   Serial.print("oC  Hum DHT ==> ");
   Serial.print(humDHT);
+  Serial.print("%  Pump: ");
+  Serial.print(pumpStatus);
 }
 
 /***************************************************
@@ -141,6 +164,9 @@ void showDataLCD(void)
   lcd.print("oC  Hum: ");
   lcd.print(humDHT);
   lcd.print("%  ");
+  lcd.setCursor (0,2);
+  lcd.print("Pump: ");
+  lcd.print(pumpStatus);
   lcd.setCursor(0,0);
 }
 
