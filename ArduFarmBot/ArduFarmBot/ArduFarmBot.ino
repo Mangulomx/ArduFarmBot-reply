@@ -11,7 +11,7 @@
 
 #define DHTPIN 5 //DHT data pin connected to Arduino pin 5
 #define DHTTYPE DHT11 // DHT 11
-
+#define LDR_PIN 0 //used for Luminosity (LDR) Sensor Input
 
 // Actuators: Buttons and LEDs
 #define PUMP_ON 11  //push-button
@@ -22,14 +22,16 @@
 //Actuators
 
 byte actuators[]={7,10};
+
 // Variables to be used by Sensor
 int tempDHT; 
 int humDHT;
+int lumen;
 
 // Variables to be used with timers
-long sampleTimingSeconds = 300; // ==> Define Sample time in seconds to read sensores
-long startTiming = 0;
-long elapsedTime = 0;
+long sampleTimingSeconds = 30; // ==> Define Sample time in seconds to read sensores
+unsigned long startTiming = 0;
+unsigned long elapsedTime = 0;
 
 // Variables to be used by Actuators
 boolean pumpStatus = 0;
@@ -57,20 +59,21 @@ void setup() {
   lcd.begin();
   readSensors(); // innitial reading
   startTiming = millis(); // starting the "program clock"
-
 }
 
 void loop() {
   // Start timer for measurements
   elapsedTime = millis()-startTiming; 
-
+  Serial.println("elapsedTime");
+  Serial.println(elapsedTime);
+ 
   readLocalCmd(); //Read local button status
   showDataLCD();
-  
-  if (elapsedTime > (sampleTimingSeconds*1000)) 
+ 
+  if(elapsedTime > (sampleTimingSeconds*1000)) 
   {
     readSensors();
-    //printData();
+    printData();
     startTiming = millis();
      
   }
@@ -136,6 +139,7 @@ void readSensors(void)
 {
   tempDHT = dht.readTemperature();   //Read temperature and humidity values from DHT sensor:
   humDHT = dht.readHumidity();
+  lumen = getLumen(LDR_PIN);
 }
 
 /***************************************************
@@ -147,8 +151,8 @@ void printData(void)
   Serial.print(tempDHT);
   Serial.print("oC  Hum DHT ==> ");
   Serial.print(humDHT);
-  Serial.print("%  Pump: ");
-  Serial.print(pumpStatus);
+  Serial.print("%  Luminosity ==> ");
+  Serial.print(lumen);
 }
 
 /***************************************************
@@ -164,7 +168,11 @@ void showDataLCD(void)
   lcd.print("oC  Hum: ");
   lcd.print(humDHT);
   lcd.print("%  ");
-  lcd.setCursor (0,2);
+  lcd.setCursor(0,2);
+  lcd.print("Ligh: ");
+  lcd.print(lumen);
+  lcd.print("%");
+  lcd.setCursor (0,3);
   lcd.print("Pump: ");
   lcd.print(pumpStatus);
   lcd.setCursor(0,0);
@@ -192,3 +200,23 @@ boolean debounce(int pin)
   }
   return state;
 }
+
+/***************************************************
+* Capture luminosity data: 0% full dark to 100% full light
+****************************************************/
+
+int getLumen(int anaPin)
+{
+  int anaValue = 0;
+  for(int i=0; i<10; i++) // read sensor 10X and get the average
+  {
+    anaValue+=analogRead(anaPin);
+    delay(50);
+  }
+
+  anaValue = anaValue/10; //Light under 300; Dark over 800
+  anaValue = map(anaValue, 1023, 0, 0, 100); //LDRDark:0 ==> Light 100%
+  
+  return anaValue;
+}
+
