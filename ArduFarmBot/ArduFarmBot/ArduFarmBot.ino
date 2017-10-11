@@ -17,9 +17,13 @@
 
 // Actuators: Buttons and LEDs
 #define PUMP_ON 11  //push-button
-#define PUMP_PIN 13
+#define PUMP_PIN 12
 #define LAMP_ON 9  //push-button
 #define LAMP_PIN 8
+#define SENSORS_READ 6  // push-button 
+
+// Alert LED
+#define YELLOW_LED 13 // 13
 
 //Actuators
 
@@ -56,6 +60,7 @@ void setup() {
   digitalWrite(actuators[0], LOW);
   pinMode(PUMP_ON, INPUT_PULLUP); // Button
   pinMode(LAMP_ON, INPUT_PULLUP); // Button
+  pinMode(SENSORS_READ, INPUT_PULLUP); // Button
   
   Serial.begin(9600); 
   Serial.println("ArduFarmBot Local Station Test");
@@ -102,6 +107,16 @@ void readLocalCmd()
     showDataLCD();
     aplyCmd();
 
+  }
+
+  digiValue = debounce(SENSORS_READ);
+  if (!digiValue) 
+  {
+    digitalWrite(YELLOW_LED, HIGH); 
+    lcd.setCursor (0,0);
+    lcd.print("< Updating Sensors >");
+    readSensors();
+    digitalWrite(YELLOW_LED, LOW); 
   }
 }
 
