@@ -12,6 +12,8 @@
 #define DHTPIN 5 //DHT data pin connected to Arduino pin 5
 #define DHTTYPE DHT11 // DHT 11
 #define LDR_PIN 0 //used for Luminosity (LDR) Sensor Input
+#define SOIL_MOIST_PIN 1 //used for Soil Moisture Sensor Input
+
 
 // Actuators: Buttons and LEDs
 #define PUMP_ON 11  //push-button
@@ -27,6 +29,7 @@ byte actuators[]={7,10};
 int tempDHT; 
 int humDHT;
 int lumen;
+int soilMoist;
 
 // Variables to be used with timers
 long sampleTimingSeconds = 30; // ==> Define Sample time in seconds to read sensores
@@ -53,6 +56,7 @@ void setup() {
   digitalWrite(actuators[0], LOW);
   pinMode(PUMP_ON, INPUT_PULLUP); // Button
   pinMode(LAMP_ON, INPUT_PULLUP); // Button
+  
   Serial.begin(9600); 
   Serial.println("ArduFarmBot Local Station Test");
   dht.begin();
@@ -64,9 +68,6 @@ void setup() {
 void loop() {
   // Start timer for measurements
   elapsedTime = millis()-startTiming; 
-  Serial.println("elapsedTime");
-  Serial.println(elapsedTime);
- 
   readLocalCmd(); //Read local button status
   showDataLCD();
  
@@ -140,6 +141,31 @@ void readSensors(void)
   tempDHT = dht.readTemperature();   //Read temperature and humidity values from DHT sensor:
   humDHT = dht.readHumidity();
   lumen = getLumen(LDR_PIN);
+  soilMoist = getSoilMoist();
+}
+
+/***************************************************
+* Capture soil Moisture data
+****************************************************/
+
+int getSoilMoist()
+{
+  int humidity = 0;
+  int sensorValue = analogRead(SOIL_MOIST_PIN);
+ 
+ /* constraint function will limit the values we get so we can work better with map
+ * since I only need values in the bottom limit of 300, will make it the outer limit and 1023 the other limit
+ */
+ sensorValue = constrain (sensorValue, 300,1023);
+ // print the values returned by the sensor
+ //Serial.println(sensorValue);
+ // create a map with the values
+ // You can think we have the 100% to 300 and 0 % to 1023 wrong, but no !
+ // 300 - or 100 % - is the target value for moisture value in the soil
+ // 0% of humidity - or moisture - is when the soil is dry
+ humidity = map (sensorValue, 300, 1023, 100, 0);
+ return humidity;
+ delay(1000); //collecting values between seconds
 }
 
 /***************************************************
@@ -153,6 +179,9 @@ void printData(void)
   Serial.print(humDHT);
   Serial.print("%  Luminosity ==> ");
   Serial.print(lumen);
+  Serial.print("%  Soil Moisture ==> ");
+  Serial.print(soilMoist);
+  Serial.println("%");
 }
 
 /***************************************************
@@ -172,9 +201,14 @@ void showDataLCD(void)
   lcd.print("Ligh: ");
   lcd.print(lumen);
   lcd.print("%");
+  lcd.print("  Soil: ");
+  lcd.print(soilMoist);
+  lcd.print("%");
   lcd.setCursor (0,3);
   lcd.print("Pump: ");
   lcd.print(pumpStatus);
+  lcd.print("    Lamp: ");
+  lcd.print(lampStatus);
   lcd.setCursor(0,0);
 }
 
@@ -208,15 +242,15 @@ boolean debounce(int pin)
 int getLumen(int anaPin)
 {
   int anaValue = 0;
-  for(int i=0; i<10; i++) // read sensor 10X and get the average
+  for(int i = 0; i < 10; i++) // read sensor 10X ang get the average
   {
-    anaValue+=analogRead(anaPin);
+    anaValue += analogRead(anaPin);   
     delay(50);
   }
-
-  anaValue = anaValue/10; //Light under 300; Dark over 800
-  anaValue = map(anaValue, 1023, 0, 0, 100); //LDRDark:0 ==> Light 100%
   
-  return anaValue;
+  anaValue = anaValue/10; //Light under 300; Dark over 800
+  anaValue = map(anaValue, 1023, 0, 0, 100); //LDRDark:0  ==> light 100%
+
+  return anaValue; 
 }
 
