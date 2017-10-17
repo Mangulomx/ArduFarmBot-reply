@@ -29,11 +29,27 @@
 
 byte actuators[]={7,10};
 
-// Variables to be used by Sensor
+// Variables to be used by DHT Sensor
 int tempDHT; 
 int humDHT;
+int tempLowAlert = 0;
+int HOT_TEMP = 30;
+int COLD_TEMP = 12;
+
+// to be used by LDR Sensor
+
 int lumen;
+int lumenAlert = 0;
+int DARK_LIGHT = 30;
+
+// to be used by SM Sensor
 int soilMoist;
+int soilMoistAlert = 0;
+int DRY_SOIL = 40;
+int WET_SOIL = 60;
+int numSM = 1; // "numSM" defines number of moisture sensors that are connected
+int numSamplesSMS = 1; // "numSamplesSMS" defines number of samples of each reading cycle
+
 
 // Variables to be used with timers
 long sampleTimingSeconds = 30; // ==> Define Sample time in seconds to read sensores
@@ -43,6 +59,7 @@ unsigned long elapsedTime = 0;
 // Variables to be used by Actuators
 boolean pumpStatus = 0;
 boolean lampStatus = 0;
+int timePumpOn = 10; // Turn Pump on in minutes
 
 // Initialize the DHT sensor
 
@@ -55,6 +72,7 @@ LiquidCrystal_I2C lcd(0x3F, 20, 4);
 void setup() {
   pinMode(PUMP_PIN, OUTPUT);
   pinMode(LAMP_PIN, OUTPUT);
+  pinMode(YELLOW_LED, OUTPUT);
   pinMode(actuators[0],OUTPUT);
   pinMode(actuators[1],OUTPUT);
   digitalWrite(actuators[0], LOW);
@@ -75,11 +93,13 @@ void loop() {
   elapsedTime = millis()-startTiming; 
   readLocalCmd(); //Read local button status
   showDataLCD();
- 
+
+  Serial.println(elapsedTime);
   if(elapsedTime > (sampleTimingSeconds*1000)) 
   {
     readSensors();
     printData();
+    autoControlPlantation();
     startTiming = millis();
      
   }
@@ -146,6 +166,69 @@ void aplyCmd()
       digitalWrite(LAMP_PIN, LOW);
       digitalWrite(actuators[1], HIGH);
     }
+}
+
+/***************************************************
+* Automatically Control the Plantation based on sensors reading
+****************************************************/
+void autoControlPlantation()
+{ 
+
+//--------------------------------- PUMP ------//
+  if ((soilMoist < DRY_SOIL) && (lumen > DARK_LIGHT)) 
+  {
+    Serial.println("dentro");
+    if (soilMoistAlert == HIGH)
+    {
+      Serial.println("dentro1");
+      soilMoistAlert = LOW; 
+      turnPumpOn();
+    }
+    else soilMoistAlert = HIGH;
+  }
+  else soilMoistAlert = LOW;
+
+//--------------------------------- HEAT ------//
+
+int valor = tempDHT < COLD_TEMP;
+int valor1 = soilMoist < WET_SOIL;
+  if ((tempDHT < COLD_TEMP) && (soilMoist < WET_SOIL)) 
+  {
+    if (tempLowAlert == HIGH)
+    {
+      tempLowAlert = LOW; 
+      digitalWrite(LAMP_PIN, HIGH);
+      digitalWrite(actuators[1], LOW);
+      lampStatus = 1;
+    }
+    else tempLowAlert = HIGH;
+  }
+  else 
+  {
+    tempLowAlert = LOW;
+    digitalWrite(LAMP_PIN, LOW);
+    digitalWrite(actuators[1], HIGH);
+    lampStatus = 0; 
+  }
+}
+
+/***************************************************
+* TurnPumOn 
+****************************************************/
+void turnPumpOn()
+{
+  Serial.println("Dentro pump");
+  digitalWrite(PUMP_PIN, LOW);
+  digitalWrite(actuators[0], LOW);
+  pumpStatus = 1;
+  showDataLCD();
+  Serial.println("Se ha mostrado datos");
+  delay (timePumpOn*1000);
+  digitalWrite(PUMP_PIN, HIGH);
+  digitalWrite(actuators[0], HIGH);
+  pumpStatus = 0;
+  showDataLCD();
+  Serial.println("He apagado el pump");
 }
 
 /***************************************************
@@ -221,9 +304,11 @@ void showDataLCD(void)
   lcd.print("%");
   lcd.setCursor (0,3);
   lcd.print("Pump: ");
-  lcd.print(pumpStatus);
-  lcd.print("    Lamp: ");
-  lcd.print(lampStatus);
+  if (soilMoistAlert  == 1) lcd.print ("X");
+  else lcd.print(pumpStatus);
+  lcd.print("   Lamp: ");
+  if (tempLowAlert == 1) lcd.print ("X");
+  else lcd.print(lampStatus);
   lcd.setCursor(0,0);
 }
 
